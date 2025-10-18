@@ -29,6 +29,8 @@ app.use(
   })
 );
 app.use(cookieParser());
+// ✅ put this BEFORE express.json() and BEFORE mounting the webhook router
+app.use("/webhooks/stripe", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
