@@ -8,6 +8,7 @@ import {
   createPortalSession,
   listPublicPlans,
   listCustomerSubscriptions,
+  listCustomerInvoices
 } from "../utils/stripe.util.js";
 
 const router = Router();
@@ -117,6 +118,62 @@ router.post(
     }
 
     res.json({ ok: true, count: subs.data.length });
+  })
+);
+
+// GET /api/billing/summary
+router.get(
+  "/billing/summary",
+  requireAuth({ audience: (process.env.JWT_AUDIENCES || "").split(",") }),
+  asyncHandler(async (req, res) => {
+    const me = await User.findOne({ sub: req.auth.sub });
+    if (!me?.stripeCustomerId) {
+      return res.json({
+        activeSubscription: null,
+        entitlements: [],
+        invoices: [],
+      });
+    }
+
+    const [subs, invoices] = await Promise.all([
+      listCustomerSubscriptions(me.stripeCustomerId),
+      listCustomerInvoices(me.stripeCustomerId, 5),
+    ]);
+
+    // choose the "current" subscription
+    const active = subs.find((s) => ["active", "trialing", "past_due", "incomplete"].includes(s.status))
+      || subs.sort((a, b) => b.created - a.created)[0]
+      || null;
+
+    // flatten a primary price line to show in UI
+    let primary = null;
+    if (active?.items?.length) {
+      // pick the first item by highest amount or just first
+      primary = [...active.items].sort((a, b) => (b.unit_amount || 0) - (a.unit_amount || 0))[0];
+    }
+
+    res.json({
+      activeSubscription: active
+        ? {
+            id: active.id,
+            status: active.status,
+            current_period_end: active.current_period_end,
+            price: primary && {
+              id: primary.price_id,
+              product_name: primary.product_name,
+              product_description: primary.product_description,
+              unit_amount: primary.unit_amount,
+              currency: primary.currency,
+              interval: primary.interval,
+              interval_count: primary.interval_count,
+            },
+          }
+        : null,
+      // If you store entitlements in your cache, you can also include them here;
+      // for simplicity we can let the UI call /api/me/entitlements separately if needed.
+      entitlements: [], 
+      invoices,
+    });
   })
 );
 

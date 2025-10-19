@@ -138,26 +138,56 @@ export async function listPublicPlans({ audience } = {}) {
   return out;
 }
 
-/** NEW: list current customer subscriptions direct from Stripe (optional) */
+// utils/stripe.util.js
 export async function listCustomerSubscriptions(customerId) {
-  const stripe = getStripe();
   if (!customerId) return [];
+  const stripe = getStripe();
   const subs = await stripe.subscriptions.list({
     customer: customerId,
     status: "all",
-    expand: ["data.items.data.price.product"],
+    // ✅ stay within 4 levels: data.items.data.price (no .product)
+    expand: ["data.items.data.price"],
     limit: 100,
   });
+
   return subs.data.map((s) => ({
     id: s.id,
     status: s.status,
     current_period_end: s.current_period_end,
+    created: s.created,
     items: s.items.data.map((it) => ({
       price_id: it.price.id,
       lookup_key: it.price.lookup_key || null,
-      product_name: it.price.product?.name,
+      // ✅ use price.nickname as the display name for the plan
+      product_name: it.price.nickname || "",         // set this in Stripe Price
+      product_description: "",                       // not expanded; leave blank or map from metadata
       interval: it.price.recurring?.interval,
+      interval_count: it.price.recurring?.interval_count,
       unit_amount: it.price.unit_amount,
+      currency: it.price.currency,
     })),
+  }));
+}
+
+// List recent invoices for a customer
+export async function listCustomerInvoices(customerId, limit = 5) {
+  if (!customerId) return [];
+  const stripe = getStripe();
+  const invoices = await stripe.invoices.list({
+    customer: customerId,
+    limit,
+    expand: ["data.charge", "data.subscription"],
+  });
+  return invoices.data.map((inv) => ({
+    id: inv.id,
+    number: inv.number,
+    status: inv.status,
+    currency: inv.currency,
+    amount_due: inv.amount_due,
+    amount_paid: inv.amount_paid,
+    hosted_invoice_url: inv.hosted_invoice_url,
+    invoice_pdf: inv.invoice_pdf,
+    created: inv.created,
+    period_end: inv.lines?.data?.[0]?.period?.end || inv.period_end || null,
   }));
 }
