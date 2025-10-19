@@ -138,34 +138,64 @@ export async function listPublicPlans({ audience } = {}) {
   return out;
 }
 
-// utils/stripe.util.js
 export async function listCustomerSubscriptions(customerId) {
   if (!customerId) return [];
   const stripe = getStripe();
+
+  // 1) List subs and expand price (not product) to respect expansion depth
   const subs = await stripe.subscriptions.list({
     customer: customerId,
     status: "all",
-    // ✅ stay within 4 levels: data.items.data.price (no .product)
     expand: ["data.items.data.price"],
     limit: 100,
   });
 
+  // 2) Collect unique product IDs from the prices
+  const productIds = new Set();
+  for (const s of subs.data) {
+    for (const it of s.items.data) {
+      const p = it.price;
+      if (p && typeof p.product === "string") {
+        productIds.add(p.product);
+      }
+    }
+  }
+
+  // 3) Retrieve product records (Stripe doesn't support filtering list by ids, so retrieve individually)
+  const productMap = {};
+  await Promise.all(
+    [...productIds].map(async (pid) => {
+      try {
+        const prod = await stripe.products.retrieve(pid);
+        productMap[pid] = prod;
+      } catch {
+        // ignore missing or deleted products
+        productMap[pid] = null;
+      }
+    })
+  );
+
+  // 4) Build response using Product name/description (fallbacks to nickname / lookup_key)
   return subs.data.map((s) => ({
     id: s.id,
     status: s.status,
     current_period_end: s.current_period_end,
     created: s.created,
-    items: s.items.data.map((it) => ({
-      price_id: it.price.id,
-      lookup_key: it.price.lookup_key || null,
-      // ✅ use price.nickname as the display name for the plan
-      product_name: it.price.nickname || "",         // set this in Stripe Price
-      product_description: "",                       // not expanded; leave blank or map from metadata
-      interval: it.price.recurring?.interval,
-      interval_count: it.price.recurring?.interval_count,
-      unit_amount: it.price.unit_amount,
-      currency: it.price.currency,
-    })),
+    items: s.items.data.map((it) => {
+      const price = it.price;
+      const prodId = typeof price.product === "string" ? price.product : null;
+      const prod = prodId ? productMap[prodId] : null;
+      return {
+        price_id: price.id,
+        lookup_key: price.lookup_key || null,
+        product_name: (prod?.name) || price.nickname || price.lookup_key || "",
+        product_description: (prod?.description) || "",
+        interval: price.recurring?.interval,
+        interval_count: price.recurring?.interval_count,
+        unit_amount: price.unit_amount,
+        currency: price.currency,
+      };
+    }),
   }));
 }
 

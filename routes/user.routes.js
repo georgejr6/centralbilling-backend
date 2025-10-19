@@ -151,6 +151,7 @@ router.get(
       // pick the first item by highest amount or just first
       primary = [...active.items].sort((a, b) => (b.unit_amount || 0) - (a.unit_amount || 0))[0];
     }
+    console.log(primary)
 
     res.json({
       activeSubscription: active
