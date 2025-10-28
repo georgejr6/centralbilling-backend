@@ -3,6 +3,8 @@ import User from "../models/user.model.js";
 import SubscriptionCache from "../models/subscriptionCache.model.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import bcrypt from "bcryptjs";
+
 import {
   createCheckoutSession,
   createPortalSession,
@@ -175,6 +177,68 @@ router.get(
       entitlements: [], 
       invoices,
     });
+  })
+);
+
+router.patch(
+  "/user/update",
+  requireAuth({ audience: (process.env.JWT_AUDIENCES || "").split(",") }),
+  asyncHandler(async (req, res) => {
+    const { name, email, phoneNumber } = req.body || {};
+    const user = await User.findOne({ sub: req.auth.sub });
+    if (!user) return res.status(404).json({ error: "user_not_found" });
+
+    // update fields
+    if (name) user.metadata = { ...user.metadata, name };
+    if (phoneNumber) user.metadata = { ...user.metadata, phoneNumber };
+    if (email && email !== user.email) {
+      const exists = await User.findOne({ email });
+      if (exists && exists.sub !== user.sub) {
+        return res.status(409).json({ error: "email_exists" });
+      }
+      user.email = email.toLowerCase();
+      user.emailVerified = false;
+    }
+
+    await user.save();
+
+    res.json({
+      ok: true,
+      message: "Profile updated",
+      user: {
+        sub: user.sub,
+        email: user.email,
+        metadata: user.metadata,
+        roles: user.roles,
+      },
+    });
+  })
+);
+
+/**
+ * PATCH /api/user/change-password
+ * Updates user's password (requires current password)
+ */
+router.patch(
+  "/user/change-password",
+  requireAuth({ audience: (process.env.JWT_AUDIENCES || "").split(",") }),
+  asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ error: "missing_fields" });
+
+    const user = await User.findOne({ sub: req.auth.sub });
+    if (!user || !user.passwordHash)
+      return res.status(404).json({ error: "user_not_found" });
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: "invalid_current_password" });
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = newHash;
+    await user.save();
+
+    res.json({ ok: true, message: "Password updated" });
   })
 );
 
