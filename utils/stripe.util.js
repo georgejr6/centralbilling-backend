@@ -77,7 +77,7 @@ export async function listPublicPlans({ audience } = {}) {
     limit: 100,
   });
 
-  const allowedLookupKeys = (process.env.STRIPE_PUBLIC_PRICE_LOOKUPS || "")
+  const allowedLookupKeys = ("ys-the-homies,ms-homies-15,ms-digital-nomad" || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
