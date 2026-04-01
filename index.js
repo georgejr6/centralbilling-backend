@@ -6,6 +6,7 @@ import cors from "cors";
 import helmet from "helmet";
 
 import authRoutes from "./routes/auth.routes.js";
+import socialRoutes from "./routes/social.routes.js";
 import tokenRoutes from "./routes/token.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
@@ -42,6 +43,7 @@ app.get("/api/health", (req, res) =>
 
 // bind routes
 app.use("/oauth", authRoutes);        // /oauth/authorize
+app.use("/oauth/social", socialRoutes); // /oauth/social/discord, /oauth/social/google
 app.use("/oauth", tokenRoutes);       // /oauth/token
 app.use("/api", userRoutes);          // /api/userinfo, /api/me/entitlements, /api/billing/*
 app.use("/webhooks", webhookRoutes);  // /webhooks/stripe

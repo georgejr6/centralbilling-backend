@@ -9,6 +9,12 @@ const UserSchema = new mongoose.Schema(
     stripeCustomerId: { type: String, index: true },
     roles: { type: [String], default: ["member"] },
     metadata: { type: mongoose.Schema.Types.Mixed },
+    // OAuth provider links
+    discordId:       { type: String, sparse: true, index: true },
+    discordUsername: { type: String },
+    googleId:        { type: String, sparse: true, index: true },
+    googleEmail:     { type: String },
+    avatarUrl:       { type: String },
   },
   { timestamps: true }
 );
