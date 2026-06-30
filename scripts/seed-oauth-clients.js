@@ -36,6 +36,7 @@ const CLIENTS = [
     name: 'Homies Studio',
     redirectUris: [
       'https://studio.thehomies.app/login',
+      'https://homies-studio-alpha.vercel.app/login', // stable Vercel prod URL (pre-DNS SSO testing)
       'http://localhost:5173/login',
       'http://localhost:3000/login',
     ],
