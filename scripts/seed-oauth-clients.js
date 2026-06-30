@@ -28,6 +28,19 @@ const CLIENTS = [
     ],
     allowedScopes: ['openid', 'email', 'profile'],
   },
+  {
+    // Homies Creator Studio (studio.thehomies.app) — Novam Scheduler engine,
+    // white-labeled. CB is the identity provider; the SPA receives the CB token
+    // at ?token= on its /login route, then exchanges it at the Novam bridge.
+    clientId: 'homies-studio',
+    name: 'Homies Studio',
+    redirectUris: [
+      'https://studio.thehomies.app/login',
+      'http://localhost:5173/login',
+      'http://localhost:3000/login',
+    ],
+    allowedScopes: ['openid', 'email', 'profile'],
+  },
 ];
 
 (async () => {
