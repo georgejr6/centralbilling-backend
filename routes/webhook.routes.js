@@ -3,7 +3,6 @@ import express from "express";
 import { Router } from "express";
 import  { getStripe, upsertSubscriptionCache } from "../utils/stripe.util.js";
 import User from "../models/user.model.js";
-const stripe = getStripe(); // inside the route file (top level is fine)
 const router = Router();
 
 // raw body for webhook verification
@@ -11,6 +10,10 @@ router.post(
   "/stripe",
   async (req, res) => {
     try {
+      // Lazily resolve Stripe here — calling getStripe() at module top-level would
+      // throw on import (crashing the whole serverless function) when STRIPE_SECRET_KEY
+      // isn't configured, taking down auth/OAuth routes that don't need Stripe at all.
+      const stripe = getStripe();
       const sig = req.headers["stripe-signature"];
       const event = stripe.webhooks.constructEvent(
         req.body,
