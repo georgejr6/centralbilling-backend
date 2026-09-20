@@ -12,6 +12,7 @@ import userRoutes from "./routes/user.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import jwksRoutes from "./routes/jwks.routes.js";
 import localAuthRoutes from "./routes/auth.local.routes.js";
+import checkoutRoutes from "./routes/checkout.routes.js";
 
 import { errorHandler, notFound } from "./middlewares/error.middleware.js";
 import { cleanupExpiredAuthCodes } from "./cron/cleanup.cron.js";
@@ -49,6 +50,7 @@ app.use("/api", userRoutes);          // /api/userinfo, /api/me/entitlements, /a
 app.use("/webhooks", webhookRoutes);  // /webhooks/stripe
 app.use("/.well-known", jwksRoutes);  // /.well-known/jwks.json
 app.use("/api/auth", localAuthRoutes); // <-- /api/auth/register
+app.use("/", checkoutRoutes);          // GET /checkout — the Studio Subscribe-button target
 // 404 + error
 app.use(notFound);
 app.use(errorHandler);
